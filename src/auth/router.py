@@ -13,10 +13,10 @@ router = APIRouter(
 
 
 @router.get("/")
-async def read_root(Authorization : str = Header(default = None)):    
-    user = authentication.JWTAuthentication(Authorization)    
-    if user.authenticate() :
-        return {"Hello": "World"}
+async def read_root(Authorization : str = Header(default = None), db : Session = Depends(get_db)):
+    request_user = authentication.JWTAuthentication(Authorization, session = db)
+    if request_user.authenticate() :
+        return {"Hello": request_user.user.email}
     return {"Hello": "Darn"}
 
 
@@ -26,7 +26,7 @@ async def read_root(Authorization : str = Header(default = None)):
 #     return services.get_users(db, skip=skip, limit=limit)
 
 @router.post("/") # TODO : response models
-def create_user(user : schemas.UserCreate, db : Session = Depends(get_db)):
+async def create_user(user : schemas.UserCreate, db : Session = Depends(get_db)):
     db_user = services.get_user_by_email(db, email=user.email)
     if db_user :
         raise HTTPException(status_code=401, detail="Email already registered")
@@ -34,12 +34,20 @@ def create_user(user : schemas.UserCreate, db : Session = Depends(get_db)):
     user_dict = schemas.UserDisplay(**db_user.__dict__)    
     return dict(user_dict)
 
-@router.post("/token") # TODO : create auth token | response models
-def create_auth_token(user : schemas.UserLogin, db : Session = Depends(get_db)):
-    db_user = services.get_user_by_email(db,email=user.email)
-    if db_user :
-        if authentication.authenticate(db_user, user): # user is authenticated here
-            return {"success": True}
-        raise HTTPException(status_code=401, detail="Wrong Password or email")
-    raise HTTPException(status_code=401, detail="User not Found")
+@router.post("/token", response_model = schemas.Token) # TODO : create auth token | response models
+async def create_auth_token(user : schemas.UserLogin, db : Session = Depends(get_db)):
+    request_user = authentication.JWTAuthentication(login_payload = dict(user), session = db) 
+    if request_user.authenticate():
+        access_token = request_user.create_access_token()
+        token = schemas.Token(access_token=access_token)        
+        return token
+    
+    raise HTTPException(status_code=401, detail="Wrong Password or email")
+
+    # db_user = services.get_user_by_email(db,email=user.email)
+    # if db_user :
+    #     if authentication.authenticate(db_user, user): # user is authenticated here
+    #         return {"success": True}
+    #     raise HTTPException(status_code=401, detail="Wrong Password or email")
+    # raise HTTPException(status_code=401, detail="User not Found")
 

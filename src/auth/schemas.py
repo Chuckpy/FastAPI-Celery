@@ -64,7 +64,7 @@ class User(UserBase):
 
 class Token(BaseModel): 
     access_token: str
-    token_type: str
+    token_type: str = "Bearer"
  
 
         
