@@ -1,0 +1,50 @@
+version : "3.6"
+
+
+services:
+
+  web :
+    build : .
+    volumes :
+      - ./src:/src/
+    container_name: "celery_fast_api"
+    ports :
+      - 8000:8000
+    env_file : .env
+    depends_on :
+      - db
+    restart : on-failure
+
+  db:
+    image : postgres:13.7
+    volumes : 
+      - postgres_data:/var/lib/postgresql/data/
+    ports : 
+      - 5432:5432
+    environment :
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=fastapi_dev
+      
+  
+  # rabbitmq : 
+  #   image  : rabbitmq:3.10.7-management
+  #   container_name: 'rabbitmq'
+  #   ports:
+  #       - 5672:5672
+  #       - 15672:15672
+  #   volumes:
+  #       - rabbitmq_data:/var/lib/rabbitmq/
+  #       - rabbitmq_log:/var/log/rabbitmq
+  #   networks:
+  #       - rabbitmq_network  
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  rabbitmq_log:
+
+networks:
+  rabbitmq_network:
+    driver: bridge
+  
