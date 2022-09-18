@@ -1,5 +1,6 @@
 import jwt
 import hashlib
+from sqlalchemy.orm import Session
 from os import getenv
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
@@ -66,12 +67,13 @@ class JWTAuthentication(object):
     An authentication plugin that authenticates requests through a JSON web
     token provided in a request header.
     """
-    def __init__(self, auth_header : str = None, **kwargs ):        
+    def __init__(self, auth_header : str = None,  session : Session = None, **kwargs ):        
         self.user_model =  models.User
         self.auth_header = auth_header
-        self._valid = False # TODO : passed trough validation method
-        self.login_payload = kwargs.get("login_payload", None)
-        self.session = kwargs.get("session", None)
+        self.session = session
+        self._valid = False 
+        self.login_payload = kwargs.get("login_payload", None)        
+        self.authenticate()
 
     def create_access_token(self):
         if self._valid :
@@ -108,7 +110,7 @@ class JWTAuthentication(object):
         
         return False
 
-    def get_validated_token(self, raw_token):
+    def get_validated_token(self, raw_token : str):
         """
         Validates an encoded JSON web token and returns a validated token
         wrapper object.
@@ -119,6 +121,11 @@ class JWTAuthentication(object):
     def get_user(self, validated_token):        
         self.user = services.get_user_by_email(self.session, validated_token.get("email", None))
         return self.user
+
+    # @property
+    # def user(self):
+    #     if self._valid and self.user:
+    #         return self.user
 
     def get_raw_token(self):
         """

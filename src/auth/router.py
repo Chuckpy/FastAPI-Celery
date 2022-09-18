@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends # , Header
 from sqlalchemy.orm import Session
 from . import authentication, services, schemas
 from db.database import get_db
@@ -12,21 +12,20 @@ router = APIRouter(
 )
 
 
-@router.get("/")
-async def read_root(Authorization : str = Header(default = None), db : Session = Depends(get_db)):
-    request_user = authentication.JWTAuthentication(Authorization, session = db)
-    if request_user.authenticate() :
-        return {"Hello": request_user.user.email}
-    return {"Hello": "Darn"}
+# @router.get("/") # TODO : example of user by authentication token
+# async def read_root(Authorization : str = Header(default = None), db : Session = Depends(get_db)):
+#     request_user = authentication.JWTAuthentication(Authorization, session = db)
+#     if request_user.authenticate() :
+#         return {"Hello": request_user.user.email}
+#     return {"Hello": "Darn"}
 
 
-# TODO : uncomment this | rollback
-# @router.get("/", response_model=list[schemas.User])
-# async def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-#     return services.get_users(db, skip=skip, limit=limit)
+@router.get("/", response_model=list[schemas.User])
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return services.get_users(db, skip=skip, limit=limit)
 
 @router.post("/") # TODO : response models
-async def create_user(user : schemas.UserCreate, db : Session = Depends(get_db)):
+def create_user(user : schemas.UserCreate, db : Session = Depends(get_db)):
     db_user = services.get_user_by_email(db, email=user.email)
     if db_user :
         raise HTTPException(status_code=401, detail="Email already registered")
@@ -35,19 +34,10 @@ async def create_user(user : schemas.UserCreate, db : Session = Depends(get_db))
     return dict(user_dict)
 
 @router.post("/token", response_model = schemas.Token) # TODO : create auth token | response models
-async def create_auth_token(user : schemas.UserLogin, db : Session = Depends(get_db)):
+def create_auth_token(user : schemas.UserLogin, db : Session = Depends(get_db)):
     request_user = authentication.JWTAuthentication(login_payload = dict(user), session = db) 
-    if request_user.authenticate():
+    if request_user._valid:
         access_token = request_user.create_access_token()
         token = schemas.Token(access_token=access_token)        
-        return token
-    
+        return token    
     raise HTTPException(status_code=401, detail="Wrong Password or email")
-
-    # db_user = services.get_user_by_email(db,email=user.email)
-    # if db_user :
-    #     if authentication.authenticate(db_user, user): # user is authenticated here
-    #         return {"success": True}
-    #     raise HTTPException(status_code=401, detail="Wrong Password or email")
-    # raise HTTPException(status_code=401, detail="User not Found")
-

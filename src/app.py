@@ -1,9 +1,13 @@
 # import os
-import logging
-from fastapi import FastAPI, BackgroundTasks
+# import logging
+from fastapi import FastAPI, Request, Depends#, Header, BackgroundTasks
 from auth.router import router as auth_router
+from auth.middleware import my_context_dependency
+from chatter.router import router as chatter_router
 from db.database import engine, Base
+from starlette_context import context
 # from worker.celery_app import celery_app
+
 
 
 def get_application() -> FastAPI:
@@ -13,13 +17,14 @@ def get_application() -> FastAPI:
     """
     Base.metadata.create_all(bind=engine)
 
-    app = FastAPI()
+    app = FastAPI(debug=True, dependencies=[Depends(my_context_dependency)])
 
     # TODO : middleware missing
     # TODO : CORS missing
     # TODO : Headers missing
 
     app.include_router(auth_router)
+    app.include_router(chatter_router)
 
     return app
     
@@ -27,7 +32,8 @@ def get_application() -> FastAPI:
 app = get_application()
 
 @app.get("/")
-async def read_root():
+async def read_root(request: Request):
+    # context["Authentication"].user <- thats how to access user objects from auth middleware
     return {"Hello": "World"}
 
 
