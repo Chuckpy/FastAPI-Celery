@@ -1,8 +1,8 @@
-# import os
 # import logging
+from os import getenv
 from fastapi import FastAPI, Request, Depends#, Header, BackgroundTasks
 from auth.router import router as auth_router
-from auth.middleware import my_context_dependency
+from auth.middleware import authentication_middleware
 from chatter.router import router as chatter_router
 from db.database import engine, Base
 from starlette_context import context
@@ -17,7 +17,7 @@ def get_application() -> FastAPI:
     """
     Base.metadata.create_all(bind=engine)
 
-    app = FastAPI(debug=True, dependencies=[Depends(my_context_dependency)])
+    app = FastAPI(debug=True, dependencies=[Depends(authentication_middleware)])
 
     # TODO : middleware missing
     # TODO : CORS missing
@@ -31,9 +31,14 @@ def get_application() -> FastAPI:
 
 app = get_application()
 
+
+
+
 @app.get("/")
-async def read_root(request: Request):
-    # context["Authentication"].user <- thats how to access user objects from auth middleware
+async def read_root(request: Request):    
+    # TODO : optional authentication method
+    print(context["Authentication"].user)
+    # context["Authentication"].user # <- thats how to access user objects from auth middleware
     return {"Hello": "World"}
 
 

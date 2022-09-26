@@ -51,18 +51,18 @@ class AuthToken():
     def __init__(self, token : str ) :
         self.token = token
     
-    def __call__(self):
+    @property
+    def decoded(self):
         try :
             return jwt.decode(self.token, getenv("JWT_SECRET"), algorithms = [getenv("ALGORITHM")])
-        except jwt.exceptions.InvalidSignatureError :
-            raise AuthenticationFailed(detail="Token Authentication Failed")
-        except jwt.exceptions.ExpiredSignatureError :
-            raise AuthenticationFailed(detail="Token Expired")
-        except jwt.exceptions.DecodeError:
-            raise AuthenticationFailed(detail="Decode Token Error")
+        except jwt.exceptions.InvalidSignatureError : return
+            # raise AuthenticationFailed(detail="Token Authentication Failed")
+        except jwt.exceptions.ExpiredSignatureError : return
+            # raise AuthenticationFailed(detail="Token Expired")
+        except jwt.exceptions.DecodeError: return
+            # raise AuthenticationFailed(detail="Decode Token Error")
 
-
-class JWTAuthentication(object):
+class JWTAuthentication(object):    
     """
     An authentication plugin that authenticates requests through a JSON web
     token provided in a request header.
@@ -73,6 +73,7 @@ class JWTAuthentication(object):
         self.session = session
         self._valid = False 
         self.login_payload = kwargs.get("login_payload", None)        
+        self.user = None
         self.authenticate()
 
     def create_access_token(self):
@@ -104,8 +105,7 @@ class JWTAuthentication(object):
             return False
 
         validated_token = self.get_validated_token(raw_token)
-
-        if self.get_user(validated_token) :            
+        if validated_token and self.get_user(validated_token) :            
             return True
         
         return False
@@ -116,16 +116,11 @@ class JWTAuthentication(object):
         wrapper object.
         """
         valid_token = AuthToken(raw_token)        
-        return valid_token()
+        return valid_token.decoded
 
     def get_user(self, validated_token):        
         self.user = services.get_user_by_email(self.session, validated_token.get("email", None))
         return self.user
-
-    # @property
-    # def user(self):
-    #     if self._valid and self.user:
-    #         return self.user
 
     def get_raw_token(self):
         """
@@ -133,16 +128,18 @@ class JWTAuthentication(object):
         header value.
         """
         parts = self.auth_header.split()
-
+        
         if len(parts) == 0:
             # Empty AUTHORIZATION header sent
             return None
 
-        if len(parts) != 2:
+        if len(parts) > 2:
             raise AuthenticationFailed(
                 ("Authorization header must contain two space-delimited values"),
                 code="bad_authorization_header",
-            )
+            )            
+        if len(parts) == 1 :
+            return parts[0]
 
         return parts[1]
 
